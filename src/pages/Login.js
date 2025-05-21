@@ -1,9 +1,13 @@
 import React from 'react';
+import logo from '../logo.svg'; // Make sure logo.svg exists in the src folder
 
 const Login = () => {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
       <div className="bg-white p-8 rounded-2xl shadow-md w-full max-w-md">
+        <div className="flex justify-center mb-6">
+          <img src={logo} alt="Logo" className="h-16 w-auto" />
+        </div>
         <h2 className="text-2xl font-bold text-center mb-6">Login</h2>
         <form>
           <div className="mb-4">
