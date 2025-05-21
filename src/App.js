@@ -4,7 +4,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import DashboardLayout from './components/Layout/DashboardLayout';
 import Dashboard from './pages/Dashboard';
-import Detection from './pages/Detection';  // Make sure the path matches your file location
+import Detection from './pages/Detection';  
 import History from './pages/History';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';

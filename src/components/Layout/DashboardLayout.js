@@ -40,16 +40,24 @@
 
 // export default DashboardLayout;
 import React from 'react';
-import { Link, Outlet } from 'react-router-dom';
+import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { 
   HomeIcon, 
   ShieldCheckIcon, 
   DocumentChartBarIcon, 
   ClipboardDocumentListIcon,
-  Cog6ToothIcon 
+  Cog6ToothIcon,
+  UserCircleIcon,
+   ArrowRightOnRectangleIcon
 } from '@heroicons/react/24/outline';
 import { ShieldAlert } from 'lucide-react'; // import a relevant icon
 const DashboardLayout = () => {
+    const navigate = useNavigate();
+
+  const handleLogout = () => {
+    // Add logout logic here
+    navigate('/');
+  };
   return (
     <div className="flex h-screen">
       {/* Sidebar */}
@@ -81,6 +89,23 @@ const DashboardLayout = () => {
             System Config
           </Link>
         </nav>
+        {/* New User Profile Section */}
+        <div className="border-t border-gray-700 p-4 mt-auto">
+          <div className="flex items-center space-x-3">
+            <UserCircleIcon className="h-10 w-10 text-gray-400" />
+            <div className="flex-1">
+              <h3 className="font-medium text-white">Admin User</h3>
+              <p className="text-sm text-gray-400">admin@deepsite.com</p>
+            </div>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="mt-4 w-full flex items-center justify-center px-4 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-colors"
+          >
+            <ArrowRightOnRectangleIcon className="h-5 w-5 mr-2" />
+            Logout
+          </button>
+        </div>
       </div>
       
       {/* Main Content */}
