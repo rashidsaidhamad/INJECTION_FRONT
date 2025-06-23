@@ -48,9 +48,9 @@ import {
   ClipboardDocumentListIcon,
   Cog6ToothIcon,
   UserCircleIcon,
-   ArrowRightOnRectangleIcon
+  ArrowRightOnRectangleIcon,
+  ShieldExclamationIcon
 } from '@heroicons/react/24/outline';
-import { ShieldAlert } from 'lucide-react'; // import a relevant icon
 const DashboardLayout = () => {
     const navigate = useNavigate();
 
@@ -63,9 +63,11 @@ const DashboardLayout = () => {
       {/* Sidebar */}
       <div className="w-64 bg-gray-800 text-white">
         <div className="p-4">
-             <ShieldAlert className="w-6 h-6 text-white" />
-          <h2 className="text-xl font-bold leading-tight">SQL Injection Detection System</h2>
-          <p className="text-sm text-gray-400 mt-1">ML-Powered Security</p>
+          <div className="flex items-center mb-2">
+            <ShieldExclamationIcon className="w-6 h-6 text-blue-400 mr-2" />
+            <h2 className="text-xl font-bold leading-tight">SQL Injection Detection</h2>
+          </div>
+          <p className="text-sm text-gray-400">ML-Powered Security System</p>
         </div>
         <nav className="mt-6">
           <Link to="/dashboard" className="flex items-center px-6 py-3 hover:bg-gray-700">
