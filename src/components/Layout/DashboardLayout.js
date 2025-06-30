@@ -39,7 +39,7 @@
 // };
 
 // export default DashboardLayout;
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { 
   HomeIcon, 
@@ -53,10 +53,30 @@ import {
 } from '@heroicons/react/24/outline';
 const DashboardLayout = () => {
     const navigate = useNavigate();
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const handleLogout = () => {
-    // Add logout logic here
-    navigate('/');
+    // Clear all authentication data from localStorage
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.clear(); // Clear any other stored data
+    
+    // Close the confirmation modal
+    setShowLogoutConfirm(false);
+    
+    // Redirect to login page with replace to prevent back navigation
+    navigate('/login', { replace: true });
+    
+    // Force page reload to ensure clean state
+    window.location.href = '/login';
+  };
+
+  const confirmLogout = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const cancelLogout = () => {
+    setShowLogoutConfirm(false);
   };
   return (
     <div className="flex h-screen">
@@ -97,16 +117,17 @@ const DashboardLayout = () => {
             <UserCircleIcon className="h-10 w-10 text-gray-400" />
             <div className="flex-1">
               <h3 className="font-medium text-white">Admin User</h3>
-              <p className="text-sm text-gray-400">admin@deepsite.com</p>
             </div>
           </div>
-          <button
-            onClick={handleLogout}
-            className="mt-4 w-full flex items-center justify-center px-4 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-colors"
-          >
-            <ArrowRightOnRectangleIcon className="h-5 w-5 mr-2" />
-            Logout
-          </button>
+          <div className="mt-4 space-y-2">
+            <button
+              onClick={confirmLogout}
+              className="w-full flex items-center justify-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              <ArrowRightOnRectangleIcon className="h-5 w-5 mr-2" />
+              Logout
+            </button>
+          </div>
         </div>
       </div>
       
@@ -114,6 +135,35 @@ const DashboardLayout = () => {
       <div className="flex-1 overflow-auto">
         <Outlet />
       </div>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-md mx-4">
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Confirm Logout</h3>
+              <p className="text-sm text-gray-600 mt-2">
+                Are you sure you want to logout from the system?
+              </p>
+            </div>
+            
+            <div className="flex space-x-3">
+              <button
+                onClick={cancelLogout}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

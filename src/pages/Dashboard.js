@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
 import { 
   ShieldCheckIcon, 
   ExclamationTriangleIcon, 
@@ -15,31 +17,44 @@ import {
 } from '@heroicons/react/24/outline';
 
 const Dashboard = () => {
-  const [currentQPM, setCurrentQPM] = useState(0);
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [lastNotificationTime, setLastNotificationTime] = useState(null);
+  const navigate = useNavigate();
 
-  // Simulate real-time query monitoring
   useEffect(() => {
-    const interval = setInterval(() => {
-      // Simulate random query rate (queries per minute)
-      const newQPM = Math.floor(Math.random() * 150) + 50; // Random between 50-200
-      setCurrentQPM(newQPM);
+    const fetchData = async () => {
+      try {
+        const response = await api.get('/analytics/dashboard');
+        setData(response.data);
+      } catch (err) {
+        setError('Failed to fetch dashboard data. Please try again later.');
+        console.error(err);
+      }
+    };
 
-      // Check if threshold exceeded and enough time passed since last notification
+    fetchData();
+    const interval = setInterval(fetchData, 5000); // Refresh every 5 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (data) {
       const now = new Date();
       const timeSinceLastNotification = lastNotificationTime 
         ? (now - lastNotificationTime) / 1000 / 60 // minutes
         : 10; // If no previous notification, allow immediate trigger
 
-      if (newQPM >= 100 && timeSinceLastNotification >= 1) { // At least 1 minute between notifications
+      if (data.real_time_metrics.queries_per_minute >= 100 && timeSinceLastNotification >= 1) { // At least 1 minute between notifications
         const notification = {
           id: Date.now(),
           type: 'high-traffic',
           title: 'High Query Traffic Alert',
-          message: `${newQPM} queries per minute detected - exceeding threshold of 100 QPM`,
+          message: `${data.real_time_metrics.queries_per_minute} queries per minute detected - exceeding threshold of 100 QPM`,
           timestamp: now.toLocaleTimeString(),
-          severity: newQPM >= 150 ? 'critical' : 'warning'
+          severity: data.real_time_metrics.queries_per_minute >= 150 ? 'critical' : 'warning'
         };
         
         setNotifications(prev => [notification, ...prev.slice(0, 4)]); // Keep last 5 notifications
@@ -53,10 +68,8 @@ const Dashboard = () => {
           });
         }
       }
-    }, 5000); // Check every 5 seconds for demo purposes
-
-    return () => clearInterval(interval);
-  }, [lastNotificationTime]);
+    }
+  }, [data, lastNotificationTime]);
 
   // Request notification permission on component mount
   useEffect(() => {
@@ -68,11 +81,22 @@ const Dashboard = () => {
   const dismissNotification = (id) => {
     setNotifications(prev => prev.filter(notif => notif.id !== id));
   };
+
+  if (error) {
+    return <div className="text-red-500">{error}</div>;
+  }
+
+  if (!data) {
+    return <div>Loading...</div>;
+  }
+
+  const { summary, threat_levels, attack_types, threat_sources, recent_incidents, real_time_metrics, system_health, ml_performance } = data;
+
   const stats = [
     {
       title: "Database Queries Monitored",
-      value: "12,847",
-      change: "+12%",
+      value: summary.total_queries,
+      change: "+12%", // This can be calculated on the backend if needed
       trend: "up",
       icon: DocumentMagnifyingGlassIcon,
       color: "blue",
@@ -80,17 +104,17 @@ const Dashboard = () => {
     },
     {
       title: "Current Query Rate",
-      value: `${currentQPM}/min`,
-      change: currentQPM >= 100 ? "ALERT" : "Normal",
-      trend: currentQPM >= 100 ? "alert" : "up",
+      value: `${real_time_metrics.queries_per_minute}/min`,
+      change: real_time_metrics.is_qpm_alert ? "ALERT" : "Normal",
+      trend: real_time_metrics.is_qpm_alert ? "alert" : "up",
       icon: ClockIcon,
-      color: currentQPM >= 100 ? "red" : "green",
+      color: real_time_metrics.is_qpm_alert ? "red" : "green",
       description: `Real-time queries per minute (Threshold: 100)`
     },
     {
       title: "Security Threats Blocked",
-      value: "234",
-      change: "-8%",
+      value: summary.malicious_queries,
+      change: "-8%", // This can be calculated on the backend if needed
       trend: "down",
       icon: ExclamationTriangleIcon,
       color: "red",
@@ -98,7 +122,7 @@ const Dashboard = () => {
     },
     {
       title: "System Protection Rate",
-      value: "98.7%",
+      value: `${summary.detection_rate.toFixed(1)}%`,
       change: "+0.3%",
       trend: "up",
       icon: ShieldCheckIcon,
@@ -107,50 +131,46 @@ const Dashboard = () => {
     }
   ];
 
-  const recentThreats = [
-    { 
-      id: 1, 
-      query: "SELECT * FROM users WHERE id = 1 OR 1=1--", 
-      type: "Boolean-based SQLi", 
-      severity: "High", 
-      time: "2 min ago",
-      source: "192.168.1.45",
-      database: "user_auth_db"
-    },
-    { 
-      id: 2, 
-      query: "SELECT * FROM products UNION SELECT username,password FROM admin_users", 
-      type: "Union-based SQLi", 
-      severity: "Critical", 
-      time: "15 min ago",
-      source: "10.0.0.23",
-      database: "ecommerce_db"
-    },
-    { 
-      id: 3, 
-      query: "SELECT * FROM orders WHERE date = '2023-01-01'; DROP TABLE users;--", 
-      type: "Stacked Queries", 
-      severity: "Critical", 
-      time: "1 hour ago",
-      source: "172.16.0.8",
-      database: "orders_db"
-    },
-    { 
-      id: 4, 
-      query: "SELECT * FROM items WHERE name LIKE '%' + (SELECT TOP 1 password FROM admin) + '%'", 
-      type: "Blind SQLi", 
-      severity: "High", 
-      time: "2 hours ago",
-      source: "203.0.113.42",
-      database: "inventory_db"
-    }
-  ];
+  // Use recent incidents from backend instead of mock data
+  const recentThreats = recent_incidents.map((incident, index) => ({
+    id: incident.id,
+    query: incident.title,
+    type: incident.severity,
+    severity: incident.severity,
+    time: new Date(incident.created_at).toLocaleString(),
+    source: "System Generated",
+    database: "Detection System"
+  }));
 
   const quickActions = [
-    { title: "Security Scan Console", icon: PlayIcon, action: "detection", color: "bg-blue-600 hover:bg-blue-700" },
-    { title: "Generate Security Report", icon: ChartBarIcon, action: "analytics", color: "bg-green-600 hover:bg-green-700" },
-    { title: "Audit Log Review", icon: ClockIcon, action: "history", color: "bg-purple-600 hover:bg-purple-700" },
-    { title: "System Health Monitor", icon: EyeIcon, action: "monitor", color: "bg-orange-600 hover:bg-orange-700" }
+    { 
+      title: "Security Scan Console", 
+      icon: PlayIcon, 
+      action: "detection", 
+      color: "bg-blue-600 hover:bg-blue-700",
+      onClick: () => navigate('/dashboard/detection')
+    },
+    { 
+      title: "Generate Security Report", 
+      icon: ChartBarIcon, 
+      action: "analytics", 
+      color: "bg-green-600 hover:bg-green-700",
+      onClick: () => navigate('/dashboard/analytics')
+    },
+    { 
+      title: "Audit Log Review", 
+      icon: ClockIcon, 
+      action: "history", 
+      color: "bg-purple-600 hover:bg-purple-700",
+      onClick: () => navigate('/dashboard/history')
+    },
+    { 
+      title: "System Health Monitor", 
+      icon: EyeIcon, 
+      action: "monitor", 
+      color: "bg-orange-600 hover:bg-orange-700",
+      onClick: () => navigate('/dashboard/settings')
+    }
   ];
 
   return (
@@ -212,9 +232,9 @@ const Dashboard = () => {
             <span className="text-sm text-gray-600">Last Update: {new Date().toLocaleTimeString()}</span>
           </div>
           <div className="flex items-center">
-            <div className={`w-3 h-3 rounded-full mr-2 ${currentQPM >= 100 ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}></div>
-            <span className={`text-sm font-medium ${currentQPM >= 100 ? 'text-red-600' : 'text-gray-600'}`}>
-              Query Rate: {currentQPM}/min {currentQPM >= 100 && '⚠️ HIGH TRAFFIC'}
+            <div className={`w-3 h-3 rounded-full mr-2 ${real_time_metrics.queries_per_minute >= 100 ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}></div>
+            <span className={`text-sm font-medium ${real_time_metrics.queries_per_minute >= 100 ? 'text-red-600' : 'text-gray-600'}`}>
+              Query Rate: {real_time_metrics.queries_per_minute}/min {real_time_metrics.queries_per_minute >= 100 && '⚠️ HIGH TRAFFIC'}
             </span>
           </div>
         </div>
@@ -266,6 +286,7 @@ const Dashboard = () => {
             {quickActions.map((action, index) => (
               <button
                 key={index}
+                onClick={action.onClick}
                 className={`w-full flex items-center p-3 ${action.color} text-white rounded-lg transition-colors`}
               >
                 <action.icon className="h-5 w-5 mr-3" />
@@ -335,17 +356,17 @@ const Dashboard = () => {
           </h3>
           <div className="space-y-4">
             <div className="text-center">
-              <div className={`text-4xl font-bold mb-2 ${currentQPM >= 100 ? 'text-red-600' : 'text-green-600'}`}>
-                {currentQPM}
+              <div className={`text-4xl font-bold mb-2 ${real_time_metrics.queries_per_minute >= 100 ? 'text-red-600' : 'text-green-600'}`}>
+                {real_time_metrics.queries_per_minute}
               </div>
               <div className="text-sm text-gray-600">Queries per Minute</div>
               <div className={`mt-2 px-3 py-1 rounded-full text-xs font-medium ${
-                currentQPM >= 150 ? 'bg-red-100 text-red-800' :
-                currentQPM >= 100 ? 'bg-yellow-100 text-yellow-800' :
+                real_time_metrics.queries_per_minute >= 150 ? 'bg-red-100 text-red-800' :
+                real_time_metrics.queries_per_minute >= 100 ? 'bg-yellow-100 text-yellow-800' :
                 'bg-green-100 text-green-800'
               }`}>
-                {currentQPM >= 150 ? 'CRITICAL LOAD' :
-                 currentQPM >= 100 ? 'HIGH TRAFFIC' :
+                {real_time_metrics.queries_per_minute >= 150 ? 'CRITICAL LOAD' :
+                 real_time_metrics.queries_per_minute >= 100 ? 'HIGH TRAFFIC' :
                  'NORMAL TRAFFIC'}
               </div>
             </div>
@@ -353,18 +374,18 @@ const Dashboard = () => {
             <div className="border-t pt-4">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm text-gray-600">Threshold Status:</span>
-                <span className={`text-sm font-medium ${currentQPM >= 100 ? 'text-red-600' : 'text-green-600'}`}>
-                  {currentQPM >= 100 ? 'EXCEEDED' : 'NORMAL'}
+                <span className={`text-sm font-medium ${real_time_metrics.queries_per_minute >= 100 ? 'text-red-600' : 'text-green-600'}`}>
+                  {real_time_metrics.queries_per_minute >= 100 ? 'EXCEEDED' : 'NORMAL'}
                 </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div 
                   className={`h-2 rounded-full transition-all duration-500 ${
-                    currentQPM >= 150 ? 'bg-red-600' :
-                    currentQPM >= 100 ? 'bg-yellow-500' : 
+                    real_time_metrics.queries_per_minute >= 150 ? 'bg-red-600' :
+                    real_time_metrics.queries_per_minute >= 100 ? 'bg-yellow-500' : 
                     'bg-green-600'
                   }`}
-                  style={{width: `${Math.min((currentQPM / 200) * 100, 100)}%`}}
+                  style={{width: `${Math.min((real_time_metrics.queries_per_minute / 200) * 100, 100)}%`}}
                 ></div>
               </div>
               <div className="flex justify-between text-xs text-gray-500 mt-1">

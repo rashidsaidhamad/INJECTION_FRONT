@@ -25,18 +25,7 @@ const History = () => {
 
   useEffect(() => {
     fetchHistoryData();
-  }, [timeframe, currentPage, statusFilter]);
-
-  // Add debounced search effect
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (searchQuery !== '') {
-        setCurrentPage(1);
-        fetchHistoryData();
-      }
-    }, 500);
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
+  }, [timeframe, currentPage, statusFilter, searchQuery]);
 
   const fetchHistoryData = async () => {
     setIsLoading(true);
@@ -87,10 +76,34 @@ const History = () => {
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
   };
 
+  const handleSearch = (e) => {
+    e.preventDefault();
+    setCurrentPage(1);
+    fetchHistoryData();
+  };
+
+  const filteredData = historyData;
   const pageCount = pagination.pages || 1;
+  const paginatedData = historyData;
+
+  const exportToCSV = () => {
+    const headers = ['Timestamp', 'Query', 'Status', 'Confidence', 'Type'];
+    const csvData = filteredData.map(item => 
+      [item.timestamp, item.query, item.status, item.confidence, item.type || ''].join(',')
+    );
+    
+    const csv = [headers.join(','), ...csvData].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sql-injection-history-${timeframe}-${new Date().toISOString()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
 
   return (
     <div className="p-8">
@@ -102,10 +115,7 @@ const History = () => {
             {['day', 'week', 'month'].map((period) => (
               <button
                 key={period}
-                onClick={() => {
-                  setTimeframe(period);
-                  setCurrentPage(1);
-                }}
+                onClick={() => setTimeframe(period)}
                 className={`px-4 py-2 rounded-md transition ${
                   timeframe === period ? 'bg-white shadow-sm' : 'hover:bg-gray-200'
                 }`}
@@ -117,8 +127,7 @@ const History = () => {
 
           <button
             onClick={exportToCSV}
-            disabled={historyData.length === 0}
-            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:bg-gray-400"
+            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
           >
             <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
             Export
@@ -140,10 +149,7 @@ const History = () => {
 
         <select
           value={statusFilter}
-          onChange={(e) => {
-            setStatusFilter(e.target.value);
-            setCurrentPage(1);
-          }}
+          onChange={(e) => setStatusFilter(e.target.value)}
           className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         >
           <option value="all">All Status</option>
@@ -163,12 +169,10 @@ const History = () => {
           <div className="p-8 text-center text-gray-500">Loading...</div>
         ) : error ? (
           <div className="p-8 text-center text-red-500">{error}</div>
-        ) : historyData.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">No detection history found</div>
         ) : (
           <>
             <div className="divide-y divide-gray-200">
-              {historyData.map((item) => (
+              {paginatedData.map((item) => (
                 <div key={item.id} className="p-6 hover:bg-gray-50">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-3">
@@ -183,68 +187,46 @@ const History = () => {
                         }`}>
                           {item.status === 'malicious' ? 'Malicious Query' : 'Safe Query'}
                         </h3>
-                        <p className="text-sm text-gray-500">
-                          Confidence: {item.confidence}% 
-                          {item.threat_level && ` | Threat Level: ${item.threat_level}`}
-                        </p>
+                        <p className="text-sm text-gray-500">Confidence: {item.confidence}%</p>
                       </div>
                     </div>
                     <div className="flex items-center text-sm text-gray-500">
                       <ClockIcon className="h-4 w-4 mr-1" />
-                      {new Date(item.timestamp).toLocaleString()}
+                      {item.timestamp}
                     </div>
                   </div>
 
-                  <div className="bg-gray-50 rounded-lg p-3 font-mono text-sm overflow-x-auto">
+                  <div className="bg-gray-50 rounded-lg p-3 font-mono text-sm">
                     {item.query}
                   </div>
 
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {item.attack_type && (
+                  {item.type && (
+                    <div className="mt-2 flex items-center">
                       <span className="text-xs font-medium px-2 py-1 bg-red-100 text-red-700 rounded">
-                        {item.attack_type}
+                        {item.type}
                       </span>
-                    )}
-                    {item.source_ip && (
-                      <span className="text-xs font-medium px-2 py-1 bg-blue-100 text-blue-700 rounded">
-                        IP: {item.source_ip}
-                      </span>
-                    )}
-                    {item.target_database && (
-                      <span className="text-xs font-medium px-2 py-1 bg-gray-100 text-gray-700 rounded">
-                        DB: {item.target_database}
-                      </span>
-                    )}
-                    {item.processing_time && (
-                      <span className="text-xs font-medium px-2 py-1 bg-green-100 text-green-700 rounded">
-                        {item.processing_time}ms
-                      </span>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
 
             <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
               <div className="text-sm text-gray-500">
-                Showing {pagination.page || 1} of {pagination.pages || 1} pages 
-                ({pagination.total || 0} total results)
+                Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} results
               </div>
               <div className="flex space-x-2">
                 <button
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1 || isLoading}
-                  className="p-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={currentPage === 1}
+                  className="p-2 rounded hover:bg-gray-100 disabled:opacity-50"
                 >
                   <ChevronLeftIcon className="h-5 w-5" />
                 </button>
-                <span className="px-3 py-2 text-sm text-gray-600">
-                  {currentPage} / {pageCount}
-                </span>
                 <button
                   onClick={() => setCurrentPage(p => Math.min(pageCount, p + 1))}
-                  disabled={currentPage === pageCount || isLoading}
-                  className="p-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={currentPage === pageCount}
+                  className="p-2 rounded hover:bg-gray-100 disabled:opacity-50"
                 >
                   <ChevronRightIcon className="h-5 w-5" />
                 </button>
