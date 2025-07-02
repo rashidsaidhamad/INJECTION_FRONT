@@ -25,10 +25,10 @@ const Login = () => {
     setError('');
 
     try {
-      const response = await api.post('/auth/login', formData);
+      const response = await api.post('/login', formData);
       
       // Store token and user data
-      localStorage.setItem('token', response.data.access_token);
+      localStorage.setItem('token', response.data.success ? 'admin-token' : '');
       localStorage.setItem('user', JSON.stringify(response.data.user));
       
       // Navigate to dashboard

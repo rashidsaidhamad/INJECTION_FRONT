@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CogIcon, ShieldCheckIcon, BellIcon, UserIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { CogIcon, ShieldCheckIcon, BellIcon, UserIcon, CheckIcon, ClockIcon, ServerIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 
 const Settings = () => {
@@ -16,19 +16,76 @@ const Settings = () => {
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(null);
+  const [serverTime, setServerTime] = useState('');
+  const [serverTimeFormatted, setServerTimeFormatted] = useState('');
+  const [clientTime, setClientTime] = useState('');
+  const [timeDifference, setTimeDifference] = useState(0);
+  const [systemInfo, setSystemInfo] = useState({
+    backend_version: '',
+    database: '',
+    models: [],
+    uptime: '',
+    last_restart: ''
+  });
 
-  // Load settings from backend (simulated for now)
+  // Load settings from backend
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        // For now, we'll use default settings
-        // In a real implementation, you'd fetch from: api.get('/settings')
-        console.log('Settings loaded (using defaults)');
+        setLoading(true);
+        // Fetch settings from the backend
+        const response = await api.get('/settings');
+        const backendSettings = response.data;
+        
+        // Update settings state
+        setSettings({
+          notifications: backendSettings.notifications || true,
+          autoScan: backendSettings.autoScan || false,
+          confidenceThreshold: backendSettings.confidenceThreshold || 80,
+          emailAlerts: backendSettings.emailAlerts || true,
+          logRetention: backendSettings.logRetention || 30,
+          maxQueryLength: backendSettings.maxQueryLength || 10000,
+          blockSuspiciousIPs: backendSettings.blockSuspiciousIPs || true,
+          enableRealTimeMonitoring: backendSettings.enableRealTimeMonitoring || true
+        });
+        
+        // Set server time
+        if (backendSettings.server_time) {
+          const serverTimeObj = new Date(backendSettings.server_time);
+          setServerTime(backendSettings.server_time);
+          setServerTimeFormatted(serverTimeObj.toLocaleString());
+          
+          // Calculate time difference between client and server
+          const clientTimeObj = new Date();
+          setClientTime(clientTimeObj.toLocaleString());
+          setTimeDifference(Math.abs(clientTimeObj - serverTimeObj) / 1000); // Difference in seconds
+        }
+        
+        // Set system info
+        if (backendSettings.system_info) {
+          setSystemInfo(backendSettings.system_info);
+        }
+        
+        console.log('Settings loaded from backend');
       } catch (error) {
         console.error('Failed to load settings:', error);
+        setError('Failed to load settings. Using default values.');
+        
+        // Set client time as fallback
+        const clientTimeObj = new Date();
+        setClientTime(clientTimeObj.toLocaleString());
+      } finally {
+        setLoading(false);
       }
     };
     loadSettings();
+    
+    // Update client time every second
+    const timer = setInterval(() => {
+      setClientTime(new Date().toLocaleString());
+    }, 1000);
+    
+    return () => clearInterval(timer);
   }, []);
 
   const handleSave = async () => {
@@ -38,10 +95,18 @@ const Settings = () => {
     
     try {
       // Save settings to backend
-      // await api.put('/settings', settings);
+      const response = await api.put('/settings', settings);
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Update server time from response
+      if (response.data.settings && response.data.settings.server_time) {
+        const serverTimeObj = new Date(response.data.settings.server_time);
+        setServerTime(response.data.settings.server_time);
+        setServerTimeFormatted(serverTimeObj.toLocaleString());
+        
+        // Recalculate time difference
+        const clientTimeObj = new Date();
+        setTimeDifference(Math.abs(clientTimeObj - serverTimeObj) / 1000);
+      }
       
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -266,6 +331,72 @@ const Settings = () => {
                 placeholder="Your organization"
                 defaultValue="Security Team"
               />
+            </div>
+          </div>
+        </div>
+
+        {/* System Information */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-semibold mb-4 flex items-center">
+            <ServerIcon className="h-6 w-6 mr-2 text-blue-600" />
+            System Information
+          </h2>
+          
+          <div className="space-y-4">
+            {/* Server Time */}
+            <div className="border-b pb-4">
+              <h3 className="text-md font-medium mb-3 flex items-center">
+                <ClockIcon className="h-5 w-5 mr-2 text-gray-600" />
+                Time Synchronization
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Server Time (UTC):</p>
+                  <p className="text-sm text-gray-600">{serverTimeFormatted || 'Unavailable'}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Client Time (Local):</p>
+                  <p className="text-sm text-gray-600">{clientTime}</p>
+                </div>
+              </div>
+              
+              {timeDifference > 60 && (
+                <div className="mt-2 bg-yellow-50 p-2 rounded text-sm text-yellow-800">
+                  <p className="font-medium">Time Difference Warning</p>
+                  <p>Server and client times differ by approximately {Math.round(timeDifference / 60)} minutes.</p>
+                </div>
+              )}
+            </div>
+            
+            {/* System Details */}
+            <div>
+              <h3 className="text-md font-medium mb-3">System Details</h3>
+              
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Backend Version:</span>
+                  <span className="text-sm font-medium">{systemInfo.backend_version || 'Unknown'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Database Type:</span>
+                  <span className="text-sm font-medium">{systemInfo.database || 'SQLite'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Active Models:</span>
+                  <span className="text-sm font-medium">{systemInfo.models ? systemInfo.models.join(', ') : 'Unknown'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">System Uptime:</span>
+                  <span className="text-sm font-medium">{systemInfo.uptime || 'Unknown'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Last Restart:</span>
+                  <span className="text-sm font-medium">
+                    {systemInfo.last_restart ? new Date(systemInfo.last_restart).toLocaleString() : 'Unknown'}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

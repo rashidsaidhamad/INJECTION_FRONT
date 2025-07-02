@@ -42,17 +42,60 @@ const History = () => {
     setIsLoading(true);
     setError(null);
     try {
+      // Create the params object with correct mapping of statusFilter
+      // If user selects "Blocked" in the UI, we need to send "malicious" to the backend
       const params = {
         page: currentPage,
         per_page: itemsPerPage,
         timeframe: timeframe,
-        status: statusFilter,
+        status: statusFilter === 'blocked' ? 'malicious' : statusFilter,
         search: searchQuery
       };
       
-      const response = await api.get('/analytics/history', { params });
-      setHistoryData(response.data.history);
-      setPagination(response.data.pagination);
+      const response = await api.get('/history', { params });
+      
+      // Transform the backend response to match the frontend format
+      const transformedHistory = response.data.map(item => {
+        // Calculate a more accurate confidence value based on model predictions
+        let confidence = 0;
+        let modelCount = 0;
+        
+        if (item.rf_prediction !== null) {
+          confidence += item.rf_prediction ? 100 : 0;
+          modelCount++;
+        }
+        if (item.svm_prediction !== null) {
+          confidence += item.svm_prediction ? 100 : 0;
+          modelCount++;
+        }
+        if (item.bert_prediction !== null) {
+          confidence += item.bert_prediction ? 100 : 0;
+          modelCount++;
+        }
+        
+        // Average confidence across all available models
+        confidence = modelCount > 0 ? Math.round(confidence / modelCount) : 50;
+        
+        return {
+          id: item.id,
+          timestamp: item.timestamp,
+          query: item.query,
+          status: item.prediction === 'malicious' ? 'Blocked' : 'Safe',
+          confidence: confidence, // More accurate confidence based on model predictions
+          threat_level: item.prediction === 'malicious' ? 'High' : 'Low',
+          attack_type: item.prediction === 'malicious' ? (confidence > 90 ? 'Union Based' : 'Possible SQL Injection') : '',
+          source_ip: item.ip_address || 'Unknown'
+        };
+      });
+      
+      setHistoryData(transformedHistory);
+      
+      // Create pagination object
+      setPagination({
+        total: transformedHistory.length,
+        pages: Math.ceil(transformedHistory.length / itemsPerPage),
+        current: currentPage
+      });
     } catch (err) {
       setError('Failed to load history data');
       console.error('History fetch error:', err);
@@ -148,7 +191,7 @@ const History = () => {
         >
           <option value="all">All Status</option>
           <option value="safe">Safe</option>
-          <option value="malicious">Malicious</option>
+          <option value="malicious">Blocked</option>
         </select>
       </div>
 
@@ -172,20 +215,20 @@ const History = () => {
                 <div key={item.id} className="p-6 hover:bg-gray-50">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-3">
-                      {item.status === 'malicious' ? (
+                      {item.status === 'Blocked' ? (
                         <ExclamationTriangleIcon className="h-6 w-6 text-red-500" />
                       ) : (
                         <CheckCircleIcon className="h-6 w-6 text-green-500" />
                       )}
                       <div>
                         <h3 className={`font-medium ${
-                          item.status === 'malicious' ? 'text-red-600' : 'text-green-600'
+                          item.status === 'Blocked' ? 'text-red-600' : 'text-green-600'
                         }`}>
-                          {item.status === 'malicious' ? 'Malicious Query' : 'Safe Query'}
+                          {item.status === 'Blocked' ? 'Malicious Query' : 'Safe Query'}
                         </h3>
                         <p className="text-sm text-gray-500">
                           Confidence: {item.confidence}% 
-                          {item.threat_level && ` | Threat Level: ${item.threat_level}`}
+                          {item.threat_level && item.status === 'Blocked' && ` | Threat Level: ${item.threat_level}`}
                         </p>
                       </div>
                     </div>

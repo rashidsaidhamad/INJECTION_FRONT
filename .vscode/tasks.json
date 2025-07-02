@@ -1,0 +1,13 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"command": "cd /home/said/Desktop/INJECTION_FRONT && npm start",
+			"group": "build",
+			"isBackground": true,
+			"label": "Run React Frontend",
+			"problemMatcher": [],
+			"type": "shell"
+		}
+	]
+}
