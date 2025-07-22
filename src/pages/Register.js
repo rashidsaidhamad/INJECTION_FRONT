@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { UserCircleIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
-import api from '../services/api';
 import logo from '../logo.svg';
 
 const Register = () => {
@@ -10,7 +9,11 @@ const Register = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    accessReason: ''
+    firstName: '',
+    lastName: '',
+    studentId: '',
+    phone: '',
+    dateOfBirth: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -36,24 +39,43 @@ const Register = () => {
       return;
     }
 
-    if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters long.');
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters long.');
       setLoading(false);
       return;
     }
 
     try {
-      // Submit registration request
-      await api.post('/auth/register-request', {
-        username: formData.username,
-        email: formData.email,
-        password: formData.password,
-        access_reason: formData.accessReason
+      // Submit student registration request to correct endpoint
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          username: formData.username,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          password: formData.password,
+          role: 'student',
+          studentId: formData.studentId,
+          phone: formData.phone,
+          dateOfBirth: formData.dateOfBirth
+        })
       });
       
-      setSuccess(true);
+      const data = await response.json();
+      
+      if (response.ok) {
+        setSuccess(true);
+      } else {
+        setError(data.error || 'Registration failed. Please try again.');
+      }
     } catch (err) {
-      setError(err.response?.data?.error || 'Registration request failed. Please try again.');
+      setError('Registration failed. Please try again.');
+      console.error('Registration error:', err);
     } finally {
       setLoading(false);
     }
@@ -71,16 +93,16 @@ const Register = () => {
               </svg>
             </div>
           </div>
-          <h2 className="text-2xl font-bold mb-4 text-green-600">Request Submitted!</h2>
+          <h2 className="text-2xl font-bold mb-4 text-green-600">Registration Successful!</h2>
           <p className="text-gray-600 mb-6">
-            Your admin access request has been submitted successfully. An administrator will review your request and contact you via email.
+            Your student account has been created successfully. You can now log in with your credentials.
           </p>
           <Link
-            to="/"
+            to="/login"
             className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
           >
             <ArrowLeftIcon className="h-4 w-4 mr-2" />
-            Back to Login
+            Go to Login
           </Link>
         </div>
       </div>
@@ -93,9 +115,9 @@ const Register = () => {
           <img src={logo} alt="Logo" className="h-16 w-auto mb-4" />
           <UserCircleIcon className="h-16 w-16 text-gray-400" />
         </div>
-        <h2 className="text-2xl font-bold text-center mb-2">Request Admin Access</h2>
+        <h2 className="text-2xl font-bold text-center mb-2">Student Registration</h2>
         <p className="text-sm text-gray-600 text-center mb-6">
-          Submit a request for administrator access to the SQL security system
+          Create your student account to access the learning platform
         </p>
         
         {error && (
@@ -105,17 +127,31 @@ const Register = () => {
         )}
         
         <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block mb-1 text-gray-700">Username</label>
-            <input
-              type="text"
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter desired username"
-              required
-            />
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block mb-1 text-gray-700">First Name</label>
+              <input
+                type="text"
+                name="firstName"
+                value={formData.firstName}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="First name"
+                required
+              />
+            </div>
+            <div>
+              <label className="block mb-1 text-gray-700">Last Name</label>
+              <input
+                type="text"
+                name="lastName"
+                value={formData.lastName}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Last name"
+                required
+              />
+            </div>
           </div>
           <div className="mb-4">
             <label className="block mb-1 text-gray-700">Email</label>
@@ -127,6 +163,51 @@ const Register = () => {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter your email"
               required
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block mb-1 text-gray-700">Username</label>
+            <input
+              type="text"
+              name="username"
+              value={formData.username}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Choose a username"
+              required
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block mb-1 text-gray-700">Student ID</label>
+            <input
+              type="text"
+              name="studentId"
+              value={formData.studentId}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Your student ID number"
+              required
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block mb-1 text-gray-700">Phone Number (Optional)</label>
+            <input
+              type="tel"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Your phone number"
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block mb-1 text-gray-700">Date of Birth (Optional)</label>
+            <input
+              type="date"
+              name="dateOfBirth"
+              value={formData.dateOfBirth}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div className="mb-4">
@@ -153,24 +234,12 @@ const Register = () => {
               required
             />
           </div>
-          <div className="mb-6">
-            <label className="block mb-1 text-gray-700">Reason for Access</label>
-            <textarea
-              name="accessReason"
-              value={formData.accessReason}
-              onChange={handleChange}
-              rows="3"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Please explain why you need administrator access..."
-              required
-            ></textarea>
-          </div>
           <button
             type="submit"
             disabled={loading}
             className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition disabled:bg-gray-400"
           >
-            {loading ? 'Submitting Request...' : 'Submit Access Request'}
+            {loading ? 'Creating Account...' : 'Create Student Account'}
           </button>
         </form>
         

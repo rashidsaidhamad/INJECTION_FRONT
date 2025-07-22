@@ -42,7 +42,7 @@ const Analytics = () => {
           total: day.total || 0,
           malicious: day.malicious || 0,
           safe: day.safe || 0,
-          average_confidence: 85 // Using a default confidence value
+          average_confidence: day.average_confidence || 85 // Use actual confidence or fallback
         }));
       } else {
         // If no daily stats, provide an empty array
@@ -56,7 +56,7 @@ const Analytics = () => {
         maliciousDetections: stats.malicious_queries || 0,
         maliciousQueries: stats.malicious_queries || 0,
         safeQueries: stats.safe_queries || 0,
-        averageConfidence: 85, // Default confidence value
+        averageConfidence: stats.average_confidence || 85, // Use actual confidence from backend
         // Use model detection counts for more realistic attack type distribution
         attackTypes: [
           { type: 'Union Based', count: Math.floor((stats.malicious_queries || 0) * 0.4), percentage: '40.0' },

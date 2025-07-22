@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import api from '../services/api';
 import { ShieldCheckIcon } from '@heroicons/react/24/outline';
 
 const Login = () => {
@@ -25,16 +24,36 @@ const Login = () => {
     setError('');
 
     try {
-      const response = await api.post('/login', formData);
-      
-      // Store token and user data
-      localStorage.setItem('token', response.data.success ? 'admin-token' : '');
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-      
-      // Navigate to dashboard
-      navigate('/dashboard');
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(formData)
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Store user data and session info
+        localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('isAuthenticated', 'true');
+        
+        // Navigate based on user role
+        if (data.user.role === 'admin') {
+          navigate('/admin/dashboard');
+        } else if (data.user.role === 'student') {
+          navigate('/student/dashboard');
+        } else {
+          navigate('/dashboard'); // fallback
+        }
+      } else {
+        setError(data.error || 'Login failed. Please try again.');
+      }
     } catch (err) {
-      setError(err.response?.data?.error || 'Login failed. Please try again.');
+      setError('Login failed. Please try again.');
+      console.error('Login error:', err);
     } finally {
       setLoading(false);
     }
@@ -48,9 +67,9 @@ const Login = () => {
             <ShieldCheckIcon className="h-16 w-16 text-blue-600" />
           </div>
         </div>
-        <h2 className="text-2xl font-bold text-center mb-2">Administrator Login</h2>
+        <h2 className="text-2xl font-bold text-center mb-2">System Login</h2>
         <p className="text-sm text-gray-600 text-center mb-6">
-          SQL Injection Detection System
+          Student Management & SQL Injection Detection System
         </p>
         
         {error && (
@@ -68,7 +87,7 @@ const Login = () => {
               value={formData.username}
               onChange={handleChange}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter admin username"
+              placeholder="Enter your username"
               required
             />
           </div>
@@ -80,7 +99,7 @@ const Login = () => {
               value={formData.password}
               onChange={handleChange}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter admin password"
+              placeholder="Enter your password"
               required
             />
           </div>
@@ -90,9 +109,21 @@ const Login = () => {
             disabled={loading}
             className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition disabled:bg-gray-400"
           >
-            {loading ? 'Logging in...' : 'Admin Login'}
+            {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
+
+        <div className="mt-6 text-center border-t border-gray-200 pt-6">
+          <p className="text-sm text-gray-600 mb-3">
+            Don't have a student account?
+          </p>
+          <Link
+            to="/register"
+            className="inline-flex items-center px-4 py-2 text-blue-600 hover:text-blue-800 text-sm font-medium"
+          >
+            Register as Student
+          </Link>
+        </div>
       </div>
     </div>
   );
