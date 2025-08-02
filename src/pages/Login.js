@@ -43,6 +43,8 @@ const Login = () => {
         // Navigate based on user role
         if (data.user.role === 'admin') {
           navigate('/admin/dashboard');
+        } else if (data.user.role === 'lecturer') {
+          navigate('/lecturer/dashboard');
         } else if (data.user.role === 'student') {
           navigate('/student/dashboard');
         } else {

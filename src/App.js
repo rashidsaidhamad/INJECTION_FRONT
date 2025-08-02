@@ -6,11 +6,13 @@ import DashboardLayout from './components/Layout/DashboardLayout';
 import Dashboard from './pages/Dashboard';
 import StudentDashboard from './pages/StudentDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import LecturerDashboard from './pages/LecturerDashboard';
 import Courses from './pages/Courses';
 import Detection from './pages/Detection';  
 import History from './pages/History';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
+import SecurityLogs from './pages/SecurityLogs';
 
 function App() {
   return (
@@ -22,12 +24,16 @@ function App() {
         
         {/* Admin Routes */}
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/security-logs" element={<SecurityLogs />} />
         <Route path="/admin/*" element={<DashboardLayout />}>
           <Route path="detection" element={<Detection />} />
           <Route path="history" element={<History />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="settings" element={<Settings />} />
         </Route>
+        
+        {/* Lecturer Routes */}
+        <Route path="/lecturer/dashboard" element={<LecturerDashboard />} />
         
         {/* Student Routes */}
         <Route path="/student/dashboard" element={<StudentDashboard />} />

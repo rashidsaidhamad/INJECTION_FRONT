@@ -32,6 +32,7 @@ const StudentDashboard = () => {
   const [profileMessage, setProfileMessage] = useState('');
   const [enrollmentKey, setEnrollmentKey] = useState('');
   const [enrollmentMessage, setEnrollmentMessage] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Assignment-related state
   const [recentAssignments, setRecentAssignments] = useState([]);
@@ -160,6 +161,45 @@ const StudentDashboard = () => {
     } catch (error) {
       setEnrollmentMessage('Error enrolling in course');
       console.error('Enrollment error:', error);
+    }
+  };
+
+  // Download assignment file
+  const downloadAssignmentFile = async (assignmentId) => {
+    try {
+      const response = await fetch(`/api/student/assignments/${assignmentId}/download`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        // Get filename from response headers or use default
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let filename = 'assignment_file';
+        if (contentDisposition) {
+          const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+          if (filenameMatch) {
+            filename = filenameMatch[1];
+          }
+        }
+
+        // Create blob and download
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to download file');
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Failed to download file');
     }
   };
 
@@ -336,6 +376,31 @@ const StudentDashboard = () => {
     fetchCourseAssignments(enrollment.course.id);
   };
 
+  // Filter enrollments based on search query
+  const filteredEnrollments = enrollments.filter((enrollment) => {
+    if (!searchQuery.trim()) return true;
+    
+    const query = searchQuery.toLowerCase();
+    const course = enrollment.course || {};
+    
+    return (
+      (course.code && course.code.toLowerCase().includes(query)) ||
+      (course.name && course.name.toLowerCase().includes(query)) ||
+      (course.description && course.description.toLowerCase().includes(query)) ||
+      (course.instructor && course.instructor.toLowerCase().includes(query))
+    );
+  });
+
+  // Handle search input change
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+  };
+
+  // Clear search
+  const clearSearch = () => {
+    setSearchQuery('');
+  };
+
   if (!user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -357,7 +422,7 @@ const StudentDashboard = () => {
               <ShieldCheckIcon className="h-8 w-8 text-blue-600 mr-3" />
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">Student Portal</h1>
-                <p className="text-sm text-gray-500">SQL Injection Detection & Learning Management</p>
+                <p className="text-sm text-gray-500"> Learning Management</p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -387,7 +452,7 @@ const StudentDashboard = () => {
             Welcome back, {user.profile?.first_name}!
           </h2>
           <p className="text-blue-100">
-            Ready to continue your learning journey? All your activities are monitored by our advanced ML security system.
+            Ready to continue your learning journey? 
           </p>
         </div>
 
@@ -430,12 +495,49 @@ const StudentDashboard = () => {
           {/* My Courses */}
           <div className="bg-white rounded-lg shadow-sm">
             <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">My Courses</h3>
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-medium text-gray-900">My Courses</h3>
+                {enrollments.length > 0 && (
+                  <div className="flex items-center space-x-2">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search courses..."
+                        value={searchQuery}
+                        onChange={handleSearchChange}
+                        className="w-64 px-3 py-2 pl-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </div>
+                      {searchQuery && (
+                        <button
+                          onClick={clearSearch}
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                        >
+                          <svg className="h-5 w-5 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+              {searchQuery && (
+                <p className="text-sm text-gray-500 mt-2">
+                  Showing {filteredEnrollments.length} of {enrollments.length} courses
+                  {searchQuery && ` matching "${searchQuery}"`}
+                </p>
+              )}
             </div>
             <div className="p-6">
               {enrollments.length > 0 ? (
-                <div className="space-y-4">
-                  {enrollments.map((enrollment) => (
+                filteredEnrollments.length > 0 ? (
+                  <div className="space-y-4">
+                    {filteredEnrollments.map((enrollment) => (
                     <div 
                       key={enrollment.id} 
                       className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition"
@@ -479,6 +581,19 @@ const StudentDashboard = () => {
                     </div>
                   ))}
                 </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <BookOpenIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h4 className="text-lg font-medium text-gray-900 mb-2">No Courses Found</h4>
+                    <p className="text-gray-500 mb-4">No courses match your search criteria.</p>
+                    <button 
+                      onClick={clearSearch}
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                    >
+                      Clear Search
+                    </button>
+                  </div>
+                )
               ) : (
                 <div className="text-center py-8">
                   <BookOpenIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -782,6 +897,40 @@ const StudentDashboard = () => {
                   <div>
                     <h5 className="font-medium text-gray-700 mb-2">Description:</h5>
                     <p className="text-gray-600 whitespace-pre-wrap">{selectedAssignment.description}</p>
+                  </div>
+                )}
+                
+                {selectedAssignment.instructions && (
+                  <div>
+                    <h5 className="font-medium text-gray-700 mb-2">Instructions:</h5>
+                    <p className="text-gray-600 whitespace-pre-wrap">{selectedAssignment.instructions}</p>
+                  </div>
+                )}
+                
+                {selectedAssignment.filename && (
+                  <div>
+                    <h5 className="font-medium text-gray-700 mb-2">Assignment File:</h5>
+                    <div className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg">
+                      <div className="flex-shrink-0">
+                        <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-blue-900 truncate">
+                          {selectedAssignment.filename}
+                        </p>
+                        <p className="text-xs text-blue-600">
+                          Click to download assignment file
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => downloadAssignmentFile(selectedAssignment.id)}
+                        className="flex-shrink-0 px-3 py-1 text-xs font-medium text-blue-600 bg-blue-100 hover:bg-blue-200 rounded-md transition-colors"
+                      >
+                        Download
+                      </button>
+                    </div>
                   </div>
                 )}
                 
