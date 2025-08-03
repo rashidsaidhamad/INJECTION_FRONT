@@ -203,6 +203,9 @@ const AdminDashboard = () => {
     e.preventDefault();
     setLoading(true);
     
+    // Debug: Log the course data being sent
+    console.log('Creating course with data:', newCourse);
+    
     try {
       const response = await fetch('/api/admin/courses', {
         method: 'POST',
@@ -213,6 +216,10 @@ const AdminDashboard = () => {
         body: JSON.stringify(newCourse)
       });
       
+      // Debug: Log response details
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+      
       if (response.ok) {
         const data = await response.json();
         setMessage(`Course created successfully! Enrollment key: ${data.course.enrollment_key}`);
@@ -220,11 +227,17 @@ const AdminDashboard = () => {
         setShowCreateForm(false);
         fetchCourses();
         fetchDashboardStats(); // Refresh stats
+        // Auto-clear success message after 5 seconds
+        setTimeout(() => setMessage(''), 5000);
       } else {
         const error = await response.json();
+        console.log('Error response:', error); // Debug: Log error details
         setMessage(error.error || 'Failed to create course');
+        // Auto-clear error message after 3 seconds
+        setTimeout(() => setMessage(''), 3000);
       }
     } catch (error) {
+      console.log('Network error:', error); // Debug: Log network errors
       setMessage('Failed to create course');
     }
     setLoading(false);
@@ -901,6 +914,32 @@ const AdminDashboard = () => {
             {/* Create Course Form */}
             {showCreateForm && (
               <div className="p-6 border-b border-gray-200 bg-gray-50">
+                {/* Message Display */}
+                {message && (
+                  <div className={`mb-4 p-4 rounded-md ${
+                    message.includes('successfully') || message.includes('copied')
+                      ? 'bg-green-50 border border-green-200 text-green-800'
+                      : 'bg-red-50 border border-red-200 text-red-800'
+                  }`}>
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        {message.includes('successfully') || message.includes('copied') ? (
+                          <svg className="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        ) : (
+                          <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm font-medium">{message}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 <form onSubmit={handleCreateCourse} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -950,7 +989,7 @@ const AdminDashboard = () => {
                         Assign Lecturer
                       </label>
                       <select
-                        value={newCourse.lecturer_id}
+                        value={newCourse.lecturer_id || ''}
                         onChange={(e) => {
                           const selectedLecturerId = e.target.value;
                           const selectedLecturer = lecturers.find(l => l.id.toString() === selectedLecturerId);
@@ -1062,19 +1101,26 @@ const AdminDashboard = () => {
                           <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
                             <span>{course.credits} credits</span>
                             {course.lecturer ? (
-                              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                                Lecturer: {course.lecturer.name}
-                              </span>
+                              <div className="flex flex-col">
+                                <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                                  👨‍🏫 {course.lecturer.name}
+                                </span>
+                                {course.lecturer.department && (
+                                  <span className="text-xs text-gray-400 mt-1">
+                                    {course.lecturer.department} Dept.
+                                  </span>
+                                )}
+                              </div>
                             ) : course.instructor ? (
                               <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full">
-                                Instructor: {course.instructor}
+                                📝 Instructor: {course.instructor}
                               </span>
                             ) : (
                               <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
-                                No Instructor Assigned
+                                ⚠️ No Instructor Assigned
                               </span>
                             )}
-                            <span>{course.enrollment_count || 0} enrolled</span>
+                            <span>👥 {course.enrollment_count || 0} enrolled</span>
                           </div>
                         </div>
                         
